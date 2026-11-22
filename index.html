@@ -3,6 +3,7 @@
   بيكسل ستوديو — محرر صور بفكرة فوتوشوب، كود أصلي 100% (HTML/CSS/JS خالص، من غير مكتبات خارجية).
   التشغيل: احفظ الملف ده باسم pixel-studio.html وافتحه في أي متصفح حديث، هيشتغل على طول.
   الملف ده هو البرنامج وهو الكود المصدري الكامل في نفس الوقت.
+  الإصدار 3: شريط أدوات مضغوط بقوائم منبثقة للأدوات المتشابهة (الأشكال وغيرها)، خطوط عربية وإنجليزية كتير بتتحمّل أونلاين أول مرة، وأدوات إضاءة جديدة (تعريض/إضاءات/ظلال/حرارة لون).
   اختبارات آلية: افتحه كـ pixel-studio.html?test=1 — مشهد تجريبي: pixel-studio.html?demo=1
 -->
 
@@ -111,6 +112,21 @@ body {
 .tool:hover { background: var(--panel2); }
 .tool.active { background: var(--accent); border-color: var(--accent); }
 .tool.active small { color: #eaf0ff; }
+
+/* مجموعات الأدوات (قوائم منبثقة) */
+.tool-group { position: relative; display: block; }
+.tool-group > .tool { width: 100%; }
+.tool { position: relative; }
+.caret { position: absolute; inset-inline-end: 2px; bottom: 2px; font-size: 8px; line-height: 1; color: var(--muted); cursor: pointer; padding: 3px 2px; }
+.tool.active .caret { color: #eaf0ff; }
+.gicon { display: inline-flex; }
+.flyout { position: fixed; z-index: 300; min-width: 138px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 5px; box-shadow: 0 12px 32px rgba(0,0,0,.55); display: flex; flex-direction: column; gap: 2px; }
+.flyout.hidden { display: none; }
+.flyout .tool { flex-direction: row; justify-content: flex-start; align-items: center; gap: 9px; padding: 6px 10px; border-radius: 7px; width: 100%; }
+.flyout .tool small { font-size: 12px; color: var(--text); }
+.flyout .tool:hover { background: var(--panel2); }
+.flyout .tool.active { background: var(--accent); }
+.flyout .tool.active small { color: #eaf0ff; }
 
 /* منطقة العمل */
 #workspace { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
@@ -303,39 +319,65 @@ body {
 <div id="main">
 
   <!-- شريط الأدوات: شمال زي فوتوشوب -->
-  <aside id="toolbar">
+    <aside id="toolbar">
     <button class="tool active" data-tool="move"    title="تحريك الطبقات (V)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M12 2v20M2 12h20M8 6l4-4 4 4M8 18l4 4 4-4M6 8l-4 4 4 4M18 8l4 4-4 4"/></svg><small>تحريك</small></button>
-    <button class="tool" data-tool="select"  title="تحديد مستطيل (M) — Shift يضيف، Alt يطرح"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 3h18v18H3z"/></svg><small>مستطيل</small></button>
-    <button class="tool" data-tool="esel"    title="تحديد بيضاوي (Q)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 7 0 1 1-18 0 9 7 0 1 1 18 0"/></svg><small>بيضاوي</small></button>
-    <button class="tool" data-tool="lasso"   title="تحديد حر Lasso (L)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M11 17c-12 0-11-13 0-13 13 0 12 13 1 13-5 0-4-5-1-5 5 0 5 11-1 10"/></svg><small>حر</small></button>
-    <button class="tool" data-tool="poly"    title="تحديد مضلع (P)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 4l17 3-2 14-14-3z"/></svg><small>مضلع</small></button>
-    <button class="tool" data-tool="wand"    title="العصا السحرية (W)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 21L17 7M15 2v4M12 4h6M20 10v5M18 13h5"/></svg><small>عصا</small></button>
+    <div class="tool-group" data-group="selection">
+      <button class="tool group-btn" data-tool="select" title="تحديد — كليك يشغّل الأداة الظاهرة • كليك تاني أو ▾ يفتح القائمة"><span class="gicon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 3h18v18H3z"/></svg></span><small>تحديد</small><span class="caret">▾</span></button>
+      <div class="flyout hidden">
+        <button class="tool" data-tool="select" title="تحديد مستطيل (M) — Shift يضيف، Alt يطرح"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 3h18v18H3z"/></svg><small>مستطيل</small></button>
+        <button class="tool" data-tool="esel" title="تحديد بيضاوي (Q)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 7 0 1 1-18 0 9 7 0 1 1 18 0"/></svg><small>بيضاوي</small></button>
+        <button class="tool" data-tool="lasso" title="تحديد حر Lasso (L)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M11 17c-12 0-11-13 0-13 13 0 12 13 1 13-5 0-4-5-1-5 5 0 5 11-1 10"/></svg><small>حر</small></button>
+        <button class="tool" data-tool="poly" title="تحديد مضلع (P)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 4l17 3-2 14-14-3z"/></svg><small>مضلع</small></button>
+        <button class="tool" data-tool="wand" title="العصا السحرية (W)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 21L17 7M15 2v4M12 4h6M20 10v5M18 13h5"/></svg><small>عصا</small></button>
+      </div>
+    </div>
     <button class="tool" data-tool="crop"    title="قص الصورة (C)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M6 2v16h16M2 6h16v16"/></svg><small>قص</small></button>
     <button class="tool" data-tool="picker"  title="قطارة (I) — Alt للخلفية"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 16L17 3l4 4L8 20H4zM12 6l6 6"/></svg><small>قطارة</small></button>
-    <span class="tool-sep"></span>
-    <button class="tool" data-tool="heal"    title="ترميم مبسّط (J)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 15L15 4c5-5 10 0 5 5L9 20c-5 5-10 0-5-5zM8 10l6 6M11 7l6 6"/></svg><small>ترميم</small></button>
-    <button class="tool" data-tool="brush"   title="فرشاة (B)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M8 16L18 3l4 4L9 18M8 16c-6-3-1 5-7 6 6 2 11-1 7-6"/></svg><small>فرشاة</small></button>
-    <button class="tool" data-tool="pencil"  title="قلم رصاص حاد (N)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 21l2-7L18 1l5 5L10 19zM5 14l5 5"/></svg><small>قلم</small></button>
-    <button class="tool" data-tool="airbrush" title="إيربراش ناعم بشفافية (A)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 15l10-5 3 6-11 4zM10 8v-4h5v4M18 9h3M19 5h3M20 14h3"/></svg><small>إيربراش</small></button>
-    <button class="tool" data-tool="clone"   title="ختم النسخ Clone Stamp (S) — Alt+كليك للمصدر"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 20v-5h16v5zM8 14v-3l2-3V4h4v4l2 3v3M2 23h20"/></svg><small>ختم</small></button>
-    <button class="tool" data-tool="eraser"  title="ممحاة (E)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M2 15L15 2l8 8-11 11H8zM8 9l9 9M12 21h11"/></svg><small>ممحاة</small></button>
-    <span class="tool-sep"></span>
-    <button class="tool" data-tool="smudge"  title="سمج Smudge (K)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M8 20L3 13l3-2 4 4V3h3v9-7h3v8-6h3v8l-3 6H8z"/></svg><small>سمج</small></button>
-    <button class="tool" data-tool="blurtool" title="تمويه موضعي (R)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M12 2C9 7 4 12 4 16a8 7 0 0 0 16 0C20 12 15 7 12 2z"/></svg><small>تمويه</small></button>
-    <button class="tool" data-tool="sharpentool" title="شحذ موضعي"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M12 3l10 18H2zM12 9v9"/></svg><small>شحذ</small></button>
-    <button class="tool" data-tool="dodge"   title="Dodge تفتيح (O)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 1 0 0-10M12 1v3M12 20v3M1 12h3M20 12h3M4 4l2 2M18 18l2 2M4 20l2-2M18 6l2-2"/></svg><small>تفتيح</small></button>
-    <button class="tool" data-tool="burn"    title="Burn تغميق"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M13 2c2 7 8 8 7 14-1 9-18 9-17-1 0-4 5-7 5-10 3 3 3 5 2 7 3-1 4-5 3-10z"/></svg><small>تغميق</small></button>
-    <button class="tool" data-tool="sponge"  title="إسفنجة تشبع/إزالة تشبع"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 5l5-2 12 4 1 12-7 3-12-5zM7 8h1M14 10h1M7 15h1M15 17h1"/></svg><small>إسفنجة</small></button>
-    <span class="tool-sep"></span>
-    <button class="tool" data-tool="gradient" title="تدرج: خطي/دائري/زاوي/معكوس (G)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M2 4h20v16H2zM5 7v10M8 7v10M12 7v10M17 7v10"/></svg><small>تدرج</small></button>
-    <button class="tool" data-tool="fill"    title="سطل التعبئة"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M2 12l10-10 10 10-10 10zM2 12h20M19 17c7 7-5 7 0 0"/></svg><small>تعبئة</small></button>
-    <button class="tool" data-tool="line"    title="خط مستقيم"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 21L21 3"/></svg><small>خط</small></button>
-    <button class="tool" data-tool="rect"    title="مستطيل (U)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 5h18v14H3z"/></svg><small>مستطيل</small></button>
-    <button class="tool" data-tool="roundrect" title="مستطيل دائري الحواف"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M7 4h10q4 0 4 4v8q0 4-4 4H7q-4 0-4-4V8q0-4 4-4z"/></svg><small>دائري</small></button>
-    <button class="tool" data-tool="ellipse" title="دايرة / بيضاوي"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 1 1 18 0"/></svg><small>دايرة</small></button>
-    <button class="tool" data-tool="polygon" title="مضلع / نجمة (Y)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M12 2l10 7-4 12H6L2 9z"/></svg><small>مضلع</small></button>
+    <div class="tool-group" data-group="paint">
+      <button class="tool group-btn" data-tool="brush" title="رسم — كليك يشغّل الأداة الظاهرة • كليك تاني أو ▾ يفتح القائمة"><span class="gicon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M8 16L18 3l4 4L9 18M8 16c-6-3-1 5-7 6 6 2 11-1 7-6"/></svg></span><small>رسم</small><span class="caret">▾</span></button>
+      <div class="flyout hidden">
+        <button class="tool" data-tool="brush" title="فرشاة (B)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M8 16L18 3l4 4L9 18M8 16c-6-3-1 5-7 6 6 2 11-1 7-6"/></svg><small>فرشاة</small></button>
+        <button class="tool" data-tool="pencil" title="قلم رصاص حاد (N)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 21l2-7L18 1l5 5L10 19zM5 14l5 5"/></svg><small>قلم</small></button>
+        <button class="tool" data-tool="airbrush" title="إيربراش ناعم بشفافية (A)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 15l10-5 3 6-11 4zM10 8v-4h5v4M18 9h3M19 5h3M20 14h3"/></svg><small>إيربراش</small></button>
+        <button class="tool" data-tool="eraser" title="ممحاة (E)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M2 15L15 2l8 8-11 11H8zM8 9l9 9M12 21h11"/></svg><small>ممحاة</small></button>
+      </div>
+    </div>
+    <div class="tool-group" data-group="retouch">
+      <button class="tool group-btn" data-tool="heal" title="ترميم — كليك يشغّل الأداة الظاهرة • كليك تاني أو ▾ يفتح القائمة"><span class="gicon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 15L15 4c5-5 10 0 5 5L9 20c-5 5-10 0-5-5zM8 10l6 6M11 7l6 6"/></svg></span><small>ترميم</small><span class="caret">▾</span></button>
+      <div class="flyout hidden">
+        <button class="tool" data-tool="heal" title="ترميم مبسّط (J)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 15L15 4c5-5 10 0 5 5L9 20c-5 5-10 0-5-5zM8 10l6 6M11 7l6 6"/></svg><small>ترميم</small></button>
+        <button class="tool" data-tool="clone" title="ختم النسخ Clone Stamp (S) — Alt+كليك للمصدر"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 20v-5h16v5zM8 14v-3l2-3V4h4v4l2 3v3M2 23h20"/></svg><small>ختم</small></button>
+        <button class="tool" data-tool="smudge" title="سمج Smudge (K)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M8 20L3 13l3-2 4 4V3h3v9-7h3v8-6h3v8l-3 6H8z"/></svg><small>سمج</small></button>
+        <button class="tool" data-tool="blurtool" title="تمويه موضعي (R)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M12 2C9 7 4 12 4 16a8 7 0 0 0 16 0C20 12 15 7 12 2z"/></svg><small>تمويه</small></button>
+        <button class="tool" data-tool="sharpentool" title="شحذ موضعي"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M12 3l10 18H2zM12 9v9"/></svg><small>شحذ</small></button>
+      </div>
+    </div>
+    <div class="tool-group" data-group="light">
+      <button class="tool group-btn" data-tool="dodge" title="إضاءة — كليك يشغّل الأداة الظاهرة • كليك تاني أو ▾ يفتح القائمة"><span class="gicon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 1 0 0-10M12 1v3M12 20v3M1 12h3M20 12h3M4 4l2 2M18 18l2 2M4 20l2-2M18 6l2-2"/></svg></span><small>إضاءة</small><span class="caret">▾</span></button>
+      <div class="flyout hidden">
+        <button class="tool" data-tool="dodge" title="Dodge تفتيح (O)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 1 0 0-10M12 1v3M12 20v3M1 12h3M20 12h3M4 4l2 2M18 18l2 2M4 20l2-2M18 6l2-2"/></svg><small>تفتيح</small></button>
+        <button class="tool" data-tool="burn" title="Burn تغميق"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M13 2c2 7 8 8 7 14-1 9-18 9-17-1 0-4 5-7 5-10 3 3 3 5 2 7 3-1 4-5 3-10z"/></svg><small>تغميق</small></button>
+        <button class="tool" data-tool="sponge" title="إسفنجة تشبع/إزالة تشبع"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 5l5-2 12 4 1 12-7 3-12-5zM7 8h1M14 10h1M7 15h1M15 17h1"/></svg><small>إسفنجة</small></button>
+      </div>
+    </div>
+    <div class="tool-group" data-group="fill">
+      <button class="tool group-btn" data-tool="gradient" title="تعبئة — كليك يشغّل الأداة الظاهرة • كليك تاني أو ▾ يفتح القائمة"><span class="gicon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M2 4h20v16H2zM5 7v10M8 7v10M12 7v10M17 7v10"/></svg></span><small>تعبئة</small><span class="caret">▾</span></button>
+      <div class="flyout hidden">
+        <button class="tool" data-tool="gradient" title="تدرج: خطي/دائري/زاوي/معكوس (G)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M2 4h20v16H2zM5 7v10M8 7v10M12 7v10M17 7v10"/></svg><small>تدرج</small></button>
+        <button class="tool" data-tool="fill" title="سطل التعبئة"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M2 12l10-10 10 10-10 10zM2 12h20M19 17c7 7-5 7 0 0"/></svg><small>تعبئة</small></button>
+      </div>
+    </div>
+    <div class="tool-group" data-group="shapes">
+      <button class="tool group-btn" data-tool="line" title="أشكال — كليك يشغّل الأداة الظاهرة • كليك تاني أو ▾ يفتح القائمة"><span class="gicon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 21L21 3"/></svg></span><small>أشكال</small><span class="caret">▾</span></button>
+      <div class="flyout hidden">
+        <button class="tool" data-tool="line" title="خط مستقيم"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 21L21 3"/></svg><small>خط</small></button>
+        <button class="tool" data-tool="rect" title="مستطيل (U)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 5h18v14H3z"/></svg><small>مستطيل</small></button>
+        <button class="tool" data-tool="roundrect" title="مستطيل دائري الحواف"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M7 4h10q4 0 4 4v8q0 4-4 4H7q-4 0-4-4V8q0-4 4-4z"/></svg><small>دائري</small></button>
+        <button class="tool" data-tool="ellipse" title="دايرة / بيضاوي"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 1 1 18 0"/></svg><small>دايرة</small></button>
+        <button class="tool" data-tool="polygon" title="مضلع / نجمة (Y)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M12 2l10 7-4 12H6L2 9z"/></svg><small>مضلع</small></button>
+      </div>
+    </div>
     <button class="tool" data-tool="text"    title="كتابة نص (T)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 4h18M12 4v18M7 22h10"/></svg><small>نص</small></button>
-    <span class="tool-sep"></span>
     <button class="tool" data-tool="hand"    title="يد: تحريك العرض (H أو Space)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M7 14V5h3v7V2h3v10V4h3v9V7h3v9l-4 6H8l-6-9 3-2z"/></svg><small>يد</small></button>
     <button class="tool" data-tool="zoom"    title="عدسة تكبير (Z)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M15 15l7 7M17 9a8 8 0 1 1-16 0 8 8 0 1 1 16 0M5 9h8M9 5v8"/></svg><small>زوم</small></button>
     <div id="fgbg">
@@ -362,7 +404,7 @@ body {
       <label id="optRadiusWrap" class="opt hidden">استدارة <input type="range" id="optRadius" min="0" max="120" value="24"> <span id="radiusLabel">24</span></label>
       <label id="optGradWrap" class="opt hidden">التدرج <select id="optGradType"><option value="linear">خطي</option><option value="radial">دائري</option><option value="angle">زاوي</option><option value="reflected">معكوس</option></select> <select id="optGradMode"><option value="transparent">لون ← شفاف</option><option value="bg">أمامي ← خلفية</option><option value="rainbow">طيف</option></select></label>
       <label id="optContigWrap" class="opt hidden"><input type="checkbox" id="optContig" checked> متصل فقط</label>
-      <label id="optFontStyleWrap" class="opt hidden">الخط <select id="optFontFamily"><option>Segoe UI</option><option>Arial</option><option>Georgia</option><option>Times New Roman</option><option>Courier New</option><option>Impact</option><option>Tahoma</option></select> <label><input type="checkbox" id="optBold"> عريض</label> <label><input type="checkbox" id="optItalic"> مائل</label></label>
+      <label id="optFontStyleWrap" class="opt hidden">الخط <select id="optFontFamily"></select> <label><input type="checkbox" id="optBold"> عريض</label> <label><input type="checkbox" id="optItalic"> مائل</label></label>
       <span id="optSelModeWrap" class="opt hidden">Shift يضيف • Alt يطرح • Shift+Alt تقاطع</span>
       <span id="toolHint"></span>
 <button id="btnApplyCrop" class="btn warning hidden">✂ تطبيق القص</button>
@@ -406,6 +448,10 @@ body {
       <label class="slider">سطوع <input type="range" id="adjBrightness" min="-100" max="100" value="0"><span id="adjBrightnessV">0</span></label>
       <label class="slider">تباين <input type="range" id="adjContrast" min="-100" max="100" value="0"><span id="adjContrastV">0</span></label>
       <label class="slider">تشبع <input type="range" id="adjSaturation" min="-100" max="100" value="0"><span id="adjSaturationV">0</span></label>
+      <label class="slider">تعريض <input type="range" id="adjExposure" min="-100" max="100" value="0"><span id="adjExposureV">0</span></label>
+      <label class="slider">إضاءات <input type="range" id="adjHighlights" min="-100" max="100" value="0"><span id="adjHighlightsV">0</span></label>
+      <label class="slider">ظلال <input type="range" id="adjShadows" min="-100" max="100" value="0"><span id="adjShadowsV">0</span></label>
+      <label class="slider">حرارة اللون <input type="range" id="adjTemp" min="-100" max="100" value="0"><span id="adjTempV">0</span></label>
       <div class="filter-grid">
         <button class="btn small filter" data-filter="grayscale">رمادي</button>
         <button class="btn small filter" data-filter="invert">عكس الألوان</button>
@@ -489,6 +535,38 @@ body {
     return out;
   }
 
+  /* تعديل موسّع: سطوع/تباين/تشبع + تعريض/إضاءات/ظلال/حرارة اللون */
+  function adjustLight(src, o) {
+    const out = new ImageData(new Uint8ClampedArray(src.data), src.width, src.height);
+    const d = out.data;
+    const b = (o.brightness || 0) * 2.55;
+    const c = (o.contrast || 0) / 100;
+    const cf = (1 + c) / (1 - Math.min(c, 0.99));
+    const s = (o.saturation || 0) / 100;
+    const ex = Math.pow(2, (o.exposure || 0) / 100);   // ±1 وقفة تعريض
+    const hl = (o.highlights || 0) / 100;              // الإضاءات: فوق ~110
+    const sh = (o.shadows || 0) / 100;                 // الظلال: تحت ~145
+    const tp = (o.temperature || 0) / 100;
+    for (let i = 0; i < d.length; i += 4) {
+      let r = d[i], g = d[i + 1], bl = d[i + 2];
+      r += b; g += b; bl += b;
+      r = (r - 128) * cf + 128;
+      g = (g - 128) * cf + 128;
+      bl = (bl - 128) * cf + 128;
+      let lum = 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+      r = lum + (r - lum) * (1 + s);
+      g = lum + (g - lum) * (1 + s);
+      bl = lum + (bl - lum) * (1 + s);
+      r *= ex; g *= ex; bl *= ex;
+      lum = 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+      if (hl && lum > 110) { const t = Math.min(1, (lum - 110) / 145), dv = hl * t * 90; r += dv; g += dv; bl += dv; }
+      if (sh && lum < 145) { const t = Math.min(1, (145 - lum) / 145), dv = sh * t * 90; r += dv; g += dv; bl += dv; }
+      if (tp) { r += tp * 38; bl -= tp * 38; }
+      d[i] = clamp(r); d[i + 1] = clamp(g); d[i + 2] = clamp(bl);
+    }
+    return out;
+  }
+
   function grayscale(img) {
     const d = img.data;
     for (let i = 0; i < d.length; i += 4) {
@@ -566,7 +644,7 @@ body {
     ], 1);
   }
 
-  window.PSFilters = { adjust, grayscale, invert, sepia, blur, sharpen, convolve };
+  window.PSFilters = { adjust, adjustLight, grayscale, invert, sepia, blur, sharpen, convolve };
 })();
 
 </script>
@@ -1339,6 +1417,7 @@ body {
     overlay.style.left = p.x * state.zoom + "px";
     overlay.style.top = p.y * state.zoom + "px";
     overlay.style.fontSize = Math.max(13, state.fontSize * state.zoom * 0.6) + "px";
+    overlay.style.fontFamily = window.PSX ? window.PSX.fontStack() : "inherit";
     overlay.value = "";
     overlay.dataset.docX = p.x; overlay.dataset.docY = p.y;
     setTimeout(() => overlay.focus(), 0);
@@ -1429,19 +1508,20 @@ body {
       state.adjBase = ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
       state.adjBaseLayerId = layer.id;
     }
-    const b = +$("adjBrightness").value, c = +$("adjContrast").value, s = +$("adjSaturation").value;
-    $("adjBrightnessV").textContent = b;
-    $("adjContrastV").textContent = c;
-    $("adjSaturationV").textContent = s;
-    const out = F.adjust(state.adjBase, b, c, s);
+    const o = {
+      brightness: +$("adjBrightness").value, contrast: +$("adjContrast").value, saturation: +$("adjSaturation").value,
+      exposure: +$("adjExposure").value, highlights: +$("adjHighlights").value, shadows: +$("adjShadows").value, temperature: +$("adjTemp").value
+    };
+    const vMap = { brightness: "adjBrightnessV", contrast: "adjContrastV", saturation: "adjSaturationV", exposure: "adjExposureV", highlights: "adjHighlightsV", shadows: "adjShadowsV", temperature: "adjTempV" };
+    for (const k in vMap) $(vMap[k]).textContent = o[k];
+    const out = F.adjustLight ? F.adjustLight(state.adjBase, o) : F.adjust(state.adjBase, o.brightness, o.contrast, o.saturation);
     ctx.putImageData(out, 0, 0);
     if(state.selection) T.mergeByMask(layer,state.adjBase,state.selection.mask,state.docW,state.docH);
     render();
   }
 
   function resetSliders() {
-    $("adjBrightness").value = 0; $("adjContrast").value = 0; $("adjSaturation").value = 0;
-    $("adjBrightnessV").textContent = 0; $("adjContrastV").textContent = 0; $("adjSaturationV").textContent = 0;
+    ["adjBrightness", "adjContrast", "adjSaturation", "adjExposure", "adjHighlights", "adjShadows", "adjTemp"].forEach((id) => { $(id).value = 0; $(id + "V").textContent = 0; });
   }
 
   function commitAdjustments() {
@@ -1585,7 +1665,7 @@ body {
 
     document.querySelectorAll(".filter").forEach((b) =>
       b.addEventListener("click", () => applyFilter(b.dataset.filter)));
-    ["adjBrightness", "adjContrast", "adjSaturation"].forEach((id) =>
+    ["adjBrightness", "adjContrast", "adjSaturation", "adjExposure", "adjHighlights", "adjShadows", "adjTemp"].forEach((id) =>
       $(id).addEventListener("input", onSliderInput));
     $("btnApplyAdj").addEventListener("click", commitAdjustments);
     $("btnResetAdj").addEventListener("click", cancelAdjustments);
@@ -1659,6 +1739,85 @@ body {
     clip: null, cloneSrc: null, poly: null, lasso: null, mouse: null, outlineCache: null
   };
   window.PSX = X;
+
+  /* ============ الخطوط: خطوط النظام + خطوط جوجل (بتتحمّل عند الاختيار) ============ */
+  const FONT_LIST = [
+    { g: "ar", family: "Cairo", label: "Cairo — عربي/إنجليزي", gf: "Cairo:wght@400;700" },
+    { g: "ar", family: "Tajawal", label: "Tajawal — عربي/إنجليزي", gf: "Tajawal:wght@400;700" },
+    { g: "ar", family: "Almarai", label: "Almarai — عربي/إنجليزي", gf: "Almarai:wght@400;700" },
+    { g: "ar", family: "Amiri", label: "Amiri — عربي (نسخ)", gf: "Amiri:ital,wght@0,400;0,700;1,400" },
+    { g: "ar", family: "Changa", label: "Changa — عربي/إنجليزي", gf: "Changa:wght@400;700" },
+    { g: "ar", family: "El Messiri", label: "El Messiri — عربي/إنجليزي", gf: "El+Messiri:wght@400;700" },
+    { g: "ar", family: "Markazi Text", label: "Markazi Text — عربي/إنجليزي", gf: "Markazi+Text:wght@400;700" },
+    { g: "ar", family: "Noto Kufi Arabic", label: "Noto Kufi — عربي (كوفي)", gf: "Noto+Kufi+Arabic:wght@400;700" },
+    { g: "ar", family: "Reem Kufi", label: "Reem Kufi — عربي (كوفي)", gf: "Reem+Kufi:wght@400;700" },
+    { g: "ar", family: "Harmattan", label: "Harmattan — عربي/إنجليزي", gf: "Harmattan:wght@400;700" },
+    { g: "ar", family: "Aref Ruqaa", label: "Aref Ruqaa — عربي (رقعة)", gf: "Aref+Ruqaa:wght@400;700" },
+    { g: "sys", family: "Segoe UI", label: "Segoe UI — النظام" },
+    { g: "sys", family: "Tahoma", label: "Tahoma — النظام" },
+    { g: "sys", family: "Arial", label: "Arial — النظام" },
+    { g: "sys", family: "Georgia", label: "Georgia — إنجليزي" },
+    { g: "sys", family: "Times New Roman", label: "Times New Roman — إنجليزي" },
+    { g: "sys", family: "Courier New", label: "Courier New — إنجليزي" },
+    { g: "sys", family: "Impact", label: "Impact — إنجليزي" },
+    { g: "lat", family: "Roboto", label: "Roboto — إنجليزي", gf: "Roboto:ital,wght@0,400;0,700;1,400" },
+    { g: "lat", family: "Open Sans", label: "Open Sans — إنجليزي", gf: "Open+Sans:ital,wght@0,400;0,700;1,400" },
+    { g: "lat", family: "Montserrat", label: "Montserrat — إنجليزي", gf: "Montserrat:ital,wght@0,400;0,700;1,400" },
+    { g: "lat", family: "Oswald", label: "Oswald — إنجليزي", gf: "Oswald:wght@400;700" },
+    { g: "lat", family: "Playfair Display", label: "Playfair Display — إنجليزي", gf: "Playfair+Display:ital,wght@0,400;0,700;1,400" },
+    { g: "lat", family: "Bebas Neue", label: "Bebas Neue — إنجليزي", gf: "Bebas+Neue" },
+    { g: "lat", family: "Anton", label: "Anton — إنجليزي", gf: "Anton" },
+    { g: "lat", family: "Lobster", label: "Lobster — إنجليزي", gf: "Lobster" },
+    { g: "lat", family: "Dancing Script", label: "Dancing Script — إنجليزي", gf: "Dancing+Script:wght@400;700" },
+    { g: "lat", family: "Pacifico", label: "Pacifico — إنجليزي", gf: "Pacifico" }
+  ];
+  const fontStatus = {};
+  function ensureFont(family) {
+    const f = FONT_LIST.find((x) => x.family === family);
+    if (!f || !f.gf) return Promise.resolve(true);
+    if (fontStatus[family]) return fontStatus[family];
+    fontStatus[family] = (async () => {
+      try {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "https://fonts.googleapis.com/css2?family=" + f.gf + "&display=swap";
+        document.head.appendChild(link);
+        await Promise.race([new Promise((res, rej) => { link.onload = res; link.onerror = rej; }), new Promise((res) => setTimeout(res, 9000))]);
+        await Promise.race([document.fonts.load('16px "' + family + '"', "بيكسل Aa"), new Promise((res) => setTimeout(res, 9000))]);
+        return document.fonts.check('16px "' + family + '"');
+      } catch (e) { return false; }
+    })();
+    fontStatus[family].then((ok) => { if (!ok) delete fontStatus[family]; });
+    return fontStatus[family];
+  }
+  function fontActuallyLoaded(family) {
+    const ctx = document.createElement("canvas").getContext("2d");
+    const s = "بيكسل ستوديو Abc123";
+    ctx.font = '16px "' + family + '", monospace';
+    const w1 = ctx.measureText(s).width;
+    ctx.font = "16px monospace";
+    const w2 = ctx.measureText(s).width;
+    return Math.abs(w1 - w2) > 0.5;
+  }
+  function buildFontSelect() {
+    const sel = $("optFontFamily");
+    if (!sel) return;
+    sel.innerHTML = "";
+    const groups = { ar: "خطوط عربية", sys: "خطوط النظام", lat: "إنجليزية أونلاين" };
+    for (const g in groups) {
+      const og = document.createElement("optgroup");
+      og.label = groups[g];
+      FONT_LIST.filter((f) => f.g === g).forEach((f) => {
+        const o = document.createElement("option");
+        o.value = f.family; o.textContent = f.label;
+        og.appendChild(o);
+      });
+      sel.appendChild(og);
+    }
+    sel.value = X.opts.font;
+  }
+  X.fontStack = function () { return '"' + X.opts.font + '", "Segoe UI", Tahoma, Arial, sans-serif'; };
+  X.fonts = { ensure: ensureFont, verify: fontActuallyLoaded, list: FONT_LIST };
 
   /* ============ أدوات مساعدة ============ */
   function newCanvas(w, h) { const c = document.createElement("canvas"); c.width = Math.max(1, w); c.height = Math.max(1, h); return c; }
@@ -2141,6 +2300,7 @@ body {
     return img;
   }
   function brightSat(img, v) { return F.adjust(img, v.brightness, v.contrast, v.saturation); }
+  function lightFx(img, v) { return F.adjustLight(img, v); }
   X.fx = { levels, curves, hueSat, colorBalance, threshold, posterize, autoLevels, gradientMap, blurRGBA, motionBlur, unsharp, addNoise, pixelate, emboss, findEdges, median, vignette, spherize, twirl, wave, clouds, curveLUT, remap };
 
   /* ============ حوار الإعدادات العام (معاينة حية) ============ */
@@ -3031,6 +3191,7 @@ body {
     levels: dlgLevels, curves: dlgCurves,
     brightContrast: () => pixelDialog("سطوع / تباين / تشبع", [P("brightness", "سطوع", -100, 100, 0), P("contrast", "تباين", -100, 100, 0), P("saturation", "تشبع", -100, 100, 0)], brightSat),
     hueSat: () => pixelDialog("درجة اللون / التشبع / الإضاءة", [P("hue", "الدرجة", -180, 180, 0), P("sat", "التشبع", -100, 100, 0), P("light", "الإضاءة", -100, 100, 0)], hueSat),
+    lighting: () => pixelDialog("إضاءة وتعريض", [P("exposure", "التعريض", -100, 100, 0), P("highlights", "الإضاءات", -100, 100, 0), P("shadows", "الظلال", -100, 100, 0), P("temperature", "حرارة اللون", -100, 100, 0)], lightFx),
     colorBalance: () => pixelDialog("توازن الألوان", [P("cr", "سماوي ↔ أحمر", -100, 100, 0), P("mg", "أرجواني ↔ أخضر", -100, 100, 0), P("yb", "أصفر ↔ أزرق", -100, 100, 0)], colorBalance),
     threshold: () => pixelDialog("العتبة (Threshold)", [P("level", "المستوى", 1, 255, 128)], threshold),
     posterize: () => pixelDialog("التقسيم اللوني (Posterize)", [P("levels", "عدد المستويات", 2, 16, 4)], posterize),
@@ -3070,7 +3231,7 @@ body {
     ["ملف", [["جديد…", "newDoc"], ["فتح صورة كطبقة…", "openImage"], ["فتح مشروع (.psproj)…", "openProject"], ["حفظ المشروع بالطبقات", "saveProject", "Ctrl+S"], "-", ["تصدير PNG", "exportPng"], ["تصدير JPG", "exportJpg"], ["تصدير WebP", "exportWebp"]]],
     ["تعديل", [["تراجع", "undo", "Ctrl+Z"], ["إعادة", "redo", "Ctrl+Y"], "-", ["قص", "cut", "Ctrl+X"], ["نسخ", "copy", "Ctrl+C"], ["لصق كطبقة", "paste", "Ctrl+V"], "-", ["تعبئة باللون الأمامي", "fillFg", "Alt+⌫"], ["تعبئة بلون الخلفية", "fillBg", "Ctrl+⌫"], ["حد التحديد…", "strokeSel"], "-", ["تحويل حر…", "transform", "Ctrl+T"], ["قلب الطبقة أفقيًا", "flipLayerH"], ["قلب الطبقة رأسيًا", "flipLayerV"], ["تدوير الطبقة 90°", "rotLayer90"]]],
     ["صورة", [["حجم الصورة…", "imageSize"], ["حجم اللوحة…", "canvasSize"], "-", ["تدوير اللوحة 90° ↻", "rot90"], ["تدوير اللوحة 90° ↺", "rot270"], ["تدوير 180°", "rot180"], ["قلب اللوحة أفقيًا", "flipDocH"], ["قلب اللوحة رأسيًا", "flipDocV"], "-", ["قص للتحديد", "cropSel"], ["قص الشفاف", "trim"]]],
-    ["ضبط", [["المستويات…", "levels", "Ctrl+L"], ["المنحنيات…", "curves", "Ctrl+M"], ["سطوع / تباين / تشبع…", "brightContrast"], ["درجة اللون / التشبع…", "hueSat", "Ctrl+U"], ["توازن الألوان…", "colorBalance"], "-", ["مستويات تلقائية", "autoLevels"], ["تباين تلقائي", "autoContrast"], "-", ["العتبة…", "threshold"], ["التقسيم اللوني…", "posterize"], ["خريطة تدرج (أمامي↔خلفية)", "gradientMap"], ["عكس الألوان", "invert", "Ctrl+I"], ["رمادي", "grayscale"], ["سيبيا", "sepia"]]],
+    ["ضبط", [["المستويات…", "levels", "Ctrl+L"], ["المنحنيات…", "curves", "Ctrl+M"], ["سطوع / تباين / تشبع…", "brightContrast"], ["درجة اللون / التشبع…", "hueSat", "Ctrl+U"], ["إضاءة وتعريض…", "lighting"], ["توازن الألوان…", "colorBalance"], "-", ["مستويات تلقائية", "autoLevels"], ["تباين تلقائي", "autoContrast"], "-", ["العتبة…", "threshold"], ["التقسيم اللوني…", "posterize"], ["خريطة تدرج (أمامي↔خلفية)", "gradientMap"], ["عكس الألوان", "invert", "Ctrl+I"], ["رمادي", "grayscale"], ["سيبيا", "sepia"]]],
     ["فلتر", [["تمويه جاوسي…", "gaussian"], ["تمويه حركة…", "motion"], ["Unsharp Mask…", "unsharp"], ["وسيط (إزالة ضوضاء)…", "median"], "-", ["إضافة ضوضاء…", "noise"], ["فسيفساء…", "pixelate"], ["نقش بارز", "emboss"], ["إيجاد الحواف", "edges"], ["فينييت…", "vignette"], "-", ["تكوير…", "spherize"], ["دوامة…", "twirl"], ["موجة…", "wave"], ["غيوم…", "clouds"]]],
     ["طبقة", [["طبقة جديدة", "layerNew"], ["نسخ الطبقة", "layerDup"], ["إعادة تسمية…", "layerRename"], ["مسح الطبقة", "layerDel"], "-", ["طبقة من التحديد (نسخ)", "layerCopy", "Ctrl+J"], ["طبقة من التحديد (قص)", "layerCut", "Ctrl+Shift+J"], "-", ["ظل…", "dropShadow"], ["حد خارجي…", "outerStroke"], "-", ["لفوق", "layerUp"], ["لتحت", "layerDown"], ["دمج لتحت", "layerMerge", "Ctrl+E"], ["دمج الظاهر", "layerMergeVisible", "Ctrl+Shift+E"], ["تسطيح الصورة", "layerFlatten"]]],
     ["تحديد", [["الكل", "selAll", "Ctrl+A"], ["إلغاء", "selNone", "Ctrl+D"], ["عكس", "selInvert", "Ctrl+Shift+I"], "-", ["توسيع…", "selGrow"], ["تقليص…", "selShrink"], ["تنعيم الحواف…", "selFeather"], "-", ["محتوى الطبقة", "selAlpha"], ["نطاق اللون…", "selColor"]]],
@@ -3098,9 +3259,71 @@ body {
     document.addEventListener("click", closeAll);
   }
 
+  /* ============ مجموعات الأدوات (قوائم منبثقة) ============ */
+  function closeFlyouts() {
+    const open = document.querySelectorAll(".flyout:not(.hidden)");
+    if (!open.length) return false;
+    open.forEach((f) => f.classList.add("hidden"));
+    return true;
+  }
+  function toggleFlyout(g) {
+    const fly = g.querySelector(".flyout");
+    const willOpen = fly.classList.contains("hidden");
+    closeFlyouts();
+    if (!willOpen) return;
+    fly.classList.remove("hidden");
+    const r = g.querySelector(".group-btn").getBoundingClientRect();
+    const fw = fly.offsetWidth, fh = fly.offsetHeight;
+    fly.style.top = Math.max(4, Math.min(r.top, window.innerHeight - fh - 8)) + "px";
+    fly.style.left = Math.max(4, r.left < window.innerWidth / 2 ? r.right + 8 : r.left - fw - 8) + "px";
+  }
+  function syncToolGroups(tool) {
+    document.querySelectorAll(".tool-group").forEach((g) => {
+      const item = g.querySelector('.flyout .tool[data-tool="' + tool + '"]');
+      if (!item) return;
+      const btn = g.querySelector(".group-btn");
+      btn.dataset.tool = tool;
+      const svg = item.querySelector("svg");
+      if (svg) btn.querySelector(".gicon").innerHTML = svg.outerHTML;
+      btn.classList.add("active");
+    });
+  }
+  function setupToolGroups() {
+    window.addEventListener("click", (e) => {
+      const btn = e.target && e.target.closest ? e.target.closest(".group-btn") : null;
+      if (btn) btn.dataset.wasActive = S.tool === btn.dataset.tool ? "1" : "0";
+    }, true);
+    window.addEventListener("click", (e) => {
+      if (!(e.target && e.target.closest && e.target.closest(".tool-group"))) closeFlyouts();
+    });
+    document.querySelectorAll(".tool-group").forEach((g) => {
+      const btn = g.querySelector(".group-btn");
+      let lpTimer = null;
+      btn.querySelector(".caret").addEventListener("click", (e) => { e.stopPropagation(); toggleFlyout(g); });
+      btn.addEventListener("click", () => {
+        if (btn.dataset.lp === "1") { btn.dataset.lp = "0"; return; }
+        if (btn.dataset.wasActive === "1") toggleFlyout(g);
+      });
+      btn.addEventListener("pointerdown", () => { lpTimer = setTimeout(() => { btn.dataset.lp = "1"; toggleFlyout(g); }, 550); });
+      ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => btn.addEventListener(ev, () => clearTimeout(lpTimer)));
+      btn.addEventListener("contextmenu", (e) => { e.preventDefault(); toggleFlyout(g); });
+      g.querySelectorAll(".flyout .tool").forEach((it) => it.addEventListener("click", () => closeFlyouts()));
+    });
+    window.addEventListener("resize", closeFlyouts);
+  }
+  const baseOnTool = X.onTool;
+  X.onTool = function (tool) { baseOnTool(tool); syncToolGroups(tool); };
+  const baseOnKey = X.onKey;
+  X.onKey = function (e) {
+    if (e.key === "Escape" && closeFlyouts()) return true;
+    return baseOnKey(e);
+  };
+
   /* ============ ربط عناصر الواجهة الجديدة ============ */
   function bindUI() {
     buildMenus();
+    buildFontSelect();
+    setupToolGroups();
     const opt = (id, key, conv, labelId) => $(id).addEventListener("input", (e) => { X.opts[key] = conv(e); if (labelId) $(labelId).textContent = e.target.value; });
     opt("optHard", "hardness", (e) => +e.target.value, "hardLabel");
     opt("optStr", "strength", (e) => +e.target.value, "strLabel");
@@ -3111,7 +3334,15 @@ body {
     $("optGradMode").addEventListener("change", (e) => { X.opts.gradMode = e.target.value; e.target.blur(); });
     $("optContig").addEventListener("change", (e) => { X.opts.contiguous = e.target.checked; });
     $("optSponge").addEventListener("change", (e) => { X.opts.sponge = e.target.value; e.target.blur(); });
-    $("optFontFamily").addEventListener("change", (e) => { X.opts.font = e.target.value; e.target.blur(); });
+    $("optFontFamily").addEventListener("change", (e) => {
+      X.opts.font = e.target.value;
+      ensureFont(X.opts.font).then((ok) => {
+        if (!ok) toast("الخط محتاج نت أول مرة يتحمّل — شغّال بخط احتياطي لحد ما يتوفر");
+        const ov = $("textOverlay");
+        if (ov && !ov.classList.contains("hidden")) ov.style.fontFamily = X.fontStack();
+      });
+      e.target.blur();
+    });
     $("optBold").addEventListener("change", (e) => { X.opts.bold = e.target.checked; });
     $("optItalic").addEventListener("change", (e) => { X.opts.italic = e.target.checked; });
     $("bgColor").addEventListener("input", (e) => { S.bgColor = e.target.value; syncColors(); });
@@ -3480,6 +3711,93 @@ window.PSX_tests = async function (report, pointer, drag, pixel, sleep) {
   PS.setTool("airbrush"); S.color = "#000000"; S.brushSize = 120; X.opts.hardness = 100; X.opts.strength = 100; dragMod(50, 125, 250, 125);
   report("airbrush respects selection", px(l, 125, 125)[0] < 10 && px(l, 60, 125)[0] === 255);
   PS.clearSelection();
+
+  /* ---- مجموعات الأدوات المنبثقة ---- */
+  const grpAll = document.querySelectorAll("#toolbar .tool-group");
+  report("toolbar has 6 tool groups", grpAll.length === 6, String(grpAll.length));
+  const needTools = ["move","select","esel","lasso","poly","wand","crop","picker","heal","brush","pencil","airbrush","clone","eraser","smudge","blurtool","sharpentool","dodge","burn","sponge","gradient","fill","line","rect","roundrect","ellipse","polygon","text","hand","zoom"];
+  const haveTools = new Set(Array.from(document.querySelectorAll("#toolbar .tool")).map((b) => b.dataset.tool));
+  report("all 30 original tools still in toolbar", needTools.every((t) => haveTools.has(t)));
+  const shapesG = document.querySelector('.tool-group[data-group="shapes"]');
+  const shBtn = shapesG.querySelector(".group-btn");
+  report("shapes group holds 5 tools", shapesG.querySelectorAll(".flyout .tool").length === 5);
+  PS.setTool("move");
+  shBtn.querySelector(".caret").click();
+  report("caret opens flyout", !shapesG.querySelector(".flyout").classList.contains("hidden"));
+  shapesG.querySelector('.flyout .tool[data-tool="roundrect"]').click();
+  report("flyout item selects tool", S.tool === "roundrect");
+  report("flyout closes after pick", shapesG.querySelector(".flyout").classList.contains("hidden"));
+  report("group button follows tool", shBtn.dataset.tool === "roundrect" && shBtn.classList.contains("active"));
+  report("group icon follows tool", shBtn.querySelector(".gicon svg").outerHTML === shapesG.querySelector('.flyout .tool[data-tool="roundrect"] svg').outerHTML);
+  key("u");
+  report("shortcut syncs group button", S.tool === "rect" && shBtn.dataset.tool === "rect" && shBtn.classList.contains("active"));
+  const selBtn = document.querySelector('.tool-group[data-group="selection"] .group-btn');
+  selBtn.click();
+  report("group click selects current tool", S.tool === selBtn.dataset.tool);
+  selBtn.click();
+  report("second click opens flyout", !document.querySelector('.tool-group[data-group="selection"] .flyout').classList.contains("hidden"));
+  key("Escape");
+  report("escape closes flyouts", document.querySelectorAll(".flyout:not(.hidden)").length === 0);
+  PS.setTool("move");
+
+  /* ---- أدوات الإضاءة الجديدة ---- */
+  report("adjust panel has 7 sliders", document.querySelectorAll("#sidepanel .slider input[type=range]").length === 7, String(document.querySelectorAll("#sidepanel .slider input[type=range]").length));
+  const setAdj = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event("input")); };
+  l = fresh(); rectFill(l, 0, 0, 400, 300, "#3a3a3a"); PS.refreshAll();
+  setAdj("adjShadows", 90);
+  report("shadows slider lifts dark pixels", px(l, 200, 150)[0] > 0x3a + 30, String(px(l, 200, 150)[0]));
+  PS.cancelAdjustments();
+  rectFill(l, 0, 0, 400, 300, "#e8e8e8"); PS.refreshAll();
+  setAdj("adjHighlights", -90);
+  report("highlights slider dims bright pixels", px(l, 200, 150)[0] < 0xe8 - 20, String(px(l, 200, 150)[0]));
+  PS.cancelAdjustments();
+  rectFill(l, 0, 0, 400, 300, "#808080"); PS.refreshAll();
+  setAdj("adjExposure", 100);
+  report("exposure slider boosts midtones", px(l, 200, 150)[0] > 200, String(px(l, 200, 150)[0]));
+  PS.cancelAdjustments();
+  rectFill(l, 0, 0, 400, 300, "#808080"); PS.refreshAll();
+  setAdj("adjTemp", 100);
+  const warmPx = px(l, 200, 150);
+  report("temperature slider warms colors", warmPx[0] > warmPx[2] + 30, warmPx.join(","));
+  PS.cancelAdjustments();
+  report("lighting menu action exists", typeof A.lighting === "function");
+  l = fresh(); rectFill(l, 0, 0, 400, 300, "#336699");
+  A.lighting(); X.dialogApi.set("exposure", 60); X.dialogApi.set("shadows", 40); X.dialogApi.ok();
+  report("lighting dialog applies", px(l, 5, 5)[0] > 0x33 + 20, String(px(l, 5, 5)[0]));
+  l = fresh(); rectFill(l, 0, 0, 400, 300, "#808080"); PS.refreshAll();
+  setAdj("adjExposure", 100);
+  PS.commitAdjustments();
+  report("lighting commit keeps pixels", px(l, 200, 150)[0] > 200, String(px(l, 200, 150)[0]));
+  await PS.undo();
+  report("lighting undo restores", px(PS.activeLayer(), 200, 150)[0] === 128, String(px(PS.activeLayer(), 200, 150)[0]));
+
+  /* ---- الخطوط ---- */
+  const fontSel = document.getElementById("optFontFamily");
+  report("font select populated", fontSel.options.length >= 25, String(fontSel.options.length));
+  report("arabic fonts listed", Array.from(fontSel.options).some((o) => o.value === "Cairo") && Array.from(fontSel.options).some((o) => o.value === "Amiri") && Array.from(fontSel.options).some((o) => o.value === "Reem Kufi"));
+  const cairoOk = await X.fonts.ensure("Cairo");
+  report("Cairo font genuinely loads", cairoOk === true && X.fonts.verify("Cairo") === true);
+  const amiriOk = await X.fonts.ensure("Amiri");
+  report("Amiri font genuinely loads", amiriOk === true && X.fonts.verify("Amiri") === true);
+  const kufiOk = await X.fonts.ensure("Noto Kufi Arabic");
+  report("Noto Kufi font genuinely loads", kufiOk === true && X.fonts.verify("Noto Kufi Arabic") === true);
+  const robotoOk = await X.fonts.ensure("Roboto");
+  report("Roboto font genuinely loads", robotoOk === true && X.fonts.verify("Roboto") === true);
+  report("system font verify works", X.fonts.verify("Arial") === true);
+  const tlay = fresh(); PS.setTool("text"); S.fontSize = 44; S.color = "#000000";
+  fontSel.value = "Cairo"; fontSel.dispatchEvent(new Event("change"));
+  report("font change updates opts", X.opts.font === "Cairo" && X.fontCSS(30).indexOf('"Cairo"') !== -1);
+  await X.fonts.ensure("Cairo");
+  mod("pointerdown", 40, 40); mod("pointerup", 40, 40);
+  const tov = document.getElementById("textOverlay");
+  report("text overlay shows chosen font", tov.style.fontFamily.indexOf("Cairo") !== -1, tov.style.fontFamily);
+  tov.value = "بيكسل";
+  tov.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  let ink = 0;
+  for (let yy = 42; yy < 95; yy += 2) for (let xx = 40; xx < 200; xx += 2) if (px(tlay, xx, yy)[3] > 0) ink++;
+  report("arabic text renders with loaded font", ink > 15, String(ink));
+  fontSel.value = "Segoe UI"; fontSel.dispatchEvent(new Event("change"));
+  PS.setTool("move");
 };
 
 </script>
@@ -3698,4 +4016,4 @@ if (/[?&](test|demo)=1/.test(location.search)) {
 }
 </script>
 </body>
-  </html>
+</html>
