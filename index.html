@@ -3,7 +3,7 @@
   بيكسل ستوديو — محرر صور بفكرة فوتوشوب، كود أصلي 100% (HTML/CSS/JS خالص، من غير مكتبات خارجية).
   التشغيل: احفظ الملف ده باسم pixel-studio.html وافتحه في أي متصفح حديث، هيشتغل على طول.
   الملف ده هو البرنامج وهو الكود المصدري الكامل في نفس الوقت.
-  الإصدار 3: شريط أدوات مضغوط بقوائم منبثقة للأدوات المتشابهة (الأشكال وغيرها)، خطوط عربية وإنجليزية كتير بتتحمّل أونلاين أول مرة، وأدوات إضاءة جديدة (تعريض/إضاءات/ظلال/حرارة لون).
+  الإصدار 4: شريط أدوات مضغوط بقوائم منبثقة، خطوط عربية وإنجليزية بتتحمّل أونلاين أول مرة، أدوات إضاءة (تعريض/إضاءات/ظلال/حرارة لون)، قائمة إدراج فيها أشكال ورموز جاهزة بتتحط كطبقات، نص متعدد الأسطر، وحفظ تلقائي محلي بيرجّع آخر جلسة لو الصفحة اتقفلت قبل الحفظ.
   اختبارات آلية: افتحه كـ pixel-studio.html?test=1 — مشهد تجريبي: pixel-studio.html?demo=1
 -->
 
@@ -190,6 +190,8 @@ body {
   font-size: 15px;
   z-index: 5;
   min-width: 160px;
+  resize: none;
+  line-height: 1.35;
 }
 
 /* اللوحة الجانبية */
@@ -415,7 +417,7 @@ body {
       <div id="canvasHolder">
         <canvas id="canvas"></canvas>
         <div id="cropOverlay" class="hidden"></div>
-        <input id="textOverlay" class="hidden" type="text" placeholder="اكتب هنا واضغط Enter" dir="auto">
+        <textarea id="textOverlay" class="hidden" rows="3" placeholder="اكتب هنا — Enter سطر جديد • Ctrl+Enter تطبيق" dir="auto"></textarea>
       </div>
     </div>
   </section>
@@ -1437,7 +1439,9 @@ body {
     ctx.font = window.PSX ? window.PSX.fontCSS(state.fontSize) : state.fontSize + 'px Arial';
     ctx.fillStyle = state.color;
     ctx.textBaseline = "top";
-    ctx.fillText(text, parseFloat(overlay.dataset.docX), parseFloat(overlay.dataset.docY));
+    const x0 = parseFloat(overlay.dataset.docX), y0 = parseFloat(overlay.dataset.docY);
+    const lh = state.fontSize * 1.3;
+    text.split("\n").forEach((ln, i) => { if (ln.trim()) ctx.fillText(ln, x0, y0 + i * lh); });
     ctx.restore();
     refreshAll();
   }
@@ -1678,7 +1682,7 @@ body {
     canvas.addEventListener("pointerleave", onPointerUp);
 
     $("textOverlay").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") commitText();
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commitText(); }
       if (e.key === "Escape") $("textOverlay").classList.add("hidden");
       e.stopPropagation();
     });
@@ -3362,12 +3366,303 @@ body {
   }
   X.fontCSS = function (size) { return (X.opts.italic ? "italic " : "") + (X.opts.bold ? "bold " : "") + size + 'px "' + X.opts.font + '", "Segoe UI", Tahoma, Arial, sans-serif'; };
 
-  X.api = { dialog: openDialog, pixelDialog, transformNow, resizeDoc, canvasSize, rotateDoc, flipDoc, saveProject, loadProjectData, copySel, pasteInternal, layerViaCopy, mergeVisible, flatten, fillSelection, strokeSelection, invertSelection, morphMask, featherMask, selectionFrom, colorRangeMask, dropShadow, outerStroke, swapColors, defaultColors, cropToSelection, trimTransparent, stampOnLayer, finishLasso, maskFromLayerAlpha };
+  X.api = { dialog: openDialog, projectJSON, toast, pixelDialog, transformNow, resizeDoc, canvasSize, rotateDoc, flipDoc, saveProject, loadProjectData, copySel, pasteInternal, layerViaCopy, mergeVisible, flatten, fillSelection, strokeSelection, invertSelection, morphMask, featherMask, selectionFrom, colorRangeMask, dropShadow, outerStroke, swapColors, defaultColors, cropToSelection, trimTransparent, stampOnLayer, finishLasso, maskFromLayerAlpha };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindUI); else bindUI();
 })();
 
 </script>
+<script>
+/* بيكسل ستوديو — الإصدار 4: قائمة إدراج (أشكال ورموز جاهزة)، حفظ تلقائي محلي واسترجاع آخر جلسة، حماية من ضياع الشغل (كود أصلي) */
+(function () {
+  "use strict";
+  const PS = window.PS, S = PS.state, H = window.PSHistory, L = window.PSLayers, X = window.PSX;
+  const TESTMODE = /[?&](test|demo)=1/.test(location.search);
+
+  /* ============ الحفظ التلقائي والاسترجاع ============ */
+  const AKEY = "ps-autosave-v1";
+  let dirty = false, capWarned = false;
+  function idbOpen() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open("pixel-studio", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("kv");
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+  }
+  async function idbSet(k, v) { const db = await idbOpen(); return new Promise((res, rej) => { const t = db.transaction("kv", "readwrite"); t.objectStore("kv").put(v, k); t.oncomplete = () => res(); t.onerror = () => rej(t.error); }); }
+  async function idbGet(k) { const db = await idbOpen(); return new Promise((res, rej) => { const q = db.transaction("kv").objectStore("kv").get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); }
+  async function idbDel(k) { const db = await idbOpen(); return new Promise((res, rej) => { const t = db.transaction("kv", "readwrite"); t.objectStore("kv").delete(k); t.oncomplete = () => res(); t.onerror = () => rej(t.error); }); }
+  async function autosaveNow(force) {
+    if (!force && !dirty) return false;
+    try {
+      const json = X.api.projectJSON();
+      if (json.length > 12000000) {
+        if (!capWarned) { capWarned = true; X.api.toast("المشروع كبير أوي للحفظ التلقائي — احفظ نسخة .psproj بنفسك"); }
+        return false;
+      }
+      await idbSet(AKEY, { json: json, at: Date.now() });
+      dirty = false;
+      return true;
+    } catch (e) { return false; }
+  }
+  const origPush = H.pushHistory;
+  H.pushHistory = function (s) { dirty = true; return origPush.call(H, s); };
+  const origNew = PS.newDocument;
+  PS.newDocument = function (w, h) {
+    if (dirty && !TESTMODE) autosaveNow();
+    const r = origNew.call(PS, w, h);
+    dirty = false;
+    return r;
+  };
+  if (!TESTMODE) {
+    setInterval(() => { if (dirty && !document.hidden) autosaveNow(); }, 20000);
+    window.addEventListener("pagehide", () => { if (dirty) autosaveNow(); });
+    window.addEventListener("beforeunload", (e) => { if (dirty) { autosaveNow(); e.preventDefault(); e.returnValue = ""; } });
+  }
+
+  function showBanner(rec) {
+    if (!rec || !rec.json || document.getElementById("psAutosaveBanner")) return;
+    const b = document.createElement("div"); b.id = "psAutosaveBanner";
+    const sp = document.createElement("span");
+    let when = "";
+    try { const d = new Date(rec.at || Date.now()); when = d.toLocaleDateString("ar-EG") + " " + d.toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }); } catch (e) {}
+    sp.textContent = "فيه شغل محفوظ تلقائيًا" + (when ? " من " + when : "") + " — تحب ترجّعه؟";
+    const yes = document.createElement("button"); yes.className = "btn success"; yes.textContent = "استرجاع";
+    const no = document.createElement("button"); no.className = "btn"; no.textContent = "تجاهل";
+    yes.addEventListener("click", async () => {
+      const ok = await X.api.loadProjectData(rec.json);
+      b.remove();
+      if (ok) { X.api.toast("اترجّع شغلك المحفوظ تلقائيًا"); idbDel(AKEY).catch(() => {}); }
+    });
+    no.addEventListener("click", () => { b.remove(); idbDel(AKEY).catch(() => {}); });
+    b.append(sp, yes, no); document.body.appendChild(b);
+  }
+  async function checkAutosave() {
+    try {
+      const rec = await idbGet(AKEY);
+      if (rec && rec.json && !TESTMODE) showBanner(rec);
+      return rec || null;
+    } catch (e) { return null; }
+  }
+
+  /* ============ إدراج: أشكال ورموز جاهزة ============ */
+  const SHAPES = [
+    ["heart", "قلب"], ["star", "نجمة"], ["star6", "نجمة سداسية"], ["burst", "شكل انفجاري"],
+    ["arrowR", "سهم يمين"], ["arrowL", "سهم شمال"], ["arrowU", "سهم لفوق"], ["arrowD", "سهم لتحت"],
+    ["bubble", "فقاعة كلام"], ["check", "علامة صح"], ["cross", "علامة غلط"], ["lightning", "برق"],
+    ["sun", "شمس"], ["moon", "هلال"], ["cloud", "سحابة"], ["pin", "دبوس مكان"],
+    ["shield", "درع"], ["crown", "تاج"], ["flower", "وردة"], ["note", "نوتة"],
+    ["play", "زرار تشغيل"], ["diamond", "معين"], ["plus", "علامة زائد"]
+  ];
+  const SYMBOLS = "😀 😂 😍 🤔 😎 😭 🔥 ⭐ ❤️ 💜 👍 👎 🎉 💯 ✨ 🌙 ☀️ ⚡ 🎵 🏆 📌 ✅ ❌ ➕ ➖ ⚠️ 💡 🎁 📷 🔒 🔑 ♥ ★ ☂ ☕ ← → ↑ ↓".split(" ");
+
+  function poly(ctx, pts) { ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.closePath(); }
+  function circ(ctx, x, y, r) { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, 7); }
+  function rrect(ctx, x, y, w, h, r) {
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function starPts(cx, cy, r1, r2, n) {
+    const pts = [];
+    for (let i = 0; i < n * 2; i++) { const r = i % 2 ? r2 : r1, a = i * Math.PI / n; pts.push([cx + r * Math.sin(a), cy - r * Math.cos(a)]); }
+    return pts;
+  }
+  /* كل شكل بيترسَم جوه مربع 100x100 */
+  function traceShape(ctx, name) {
+    ctx.beginPath();
+    switch (name) {
+      case "heart":
+        ctx.moveTo(50, 88);
+        ctx.bezierCurveTo(10, 58, 4, 30, 22, 16);
+        ctx.bezierCurveTo(36, 6, 50, 14, 50, 28);
+        ctx.bezierCurveTo(50, 14, 64, 6, 78, 16);
+        ctx.bezierCurveTo(96, 30, 90, 58, 50, 88);
+        ctx.closePath(); break;
+      case "star": poly(ctx, starPts(50, 52, 42, 17, 5)); break;
+      case "star6": poly(ctx, starPts(50, 50, 42, 24, 6)); break;
+      case "burst": poly(ctx, starPts(50, 50, 46, 30, 12)); break;
+      case "arrowR": poly(ctx, [[8, 36], [58, 36], [58, 18], [94, 50], [58, 82], [58, 64], [8, 64]]); break;
+      case "arrowL": poly(ctx, [[92, 36], [42, 36], [42, 18], [6, 50], [42, 82], [42, 64], [92, 64]]); break;
+      case "arrowU": poly(ctx, [[36, 92], [36, 42], [18, 42], [50, 6], [82, 42], [64, 42], [64, 92]]); break;
+      case "arrowD": poly(ctx, [[36, 8], [36, 58], [18, 58], [50, 94], [82, 58], [64, 58], [64, 8]]); break;
+      case "bubble": rrect(ctx, 8, 12, 84, 56, 14); poly(ctx, [[28, 66], [24, 92], [50, 66]]); break;
+      case "check": poly(ctx, [[8, 54], [34, 80], [90, 18], [80, 8], [34, 58], [18, 44]]); break;
+      case "cross": poly(ctx, [[22, 10], [50, 38], [78, 10], [90, 22], [62, 50], [90, 78], [78, 90], [50, 62], [22, 90], [10, 78], [38, 50], [10, 22]]); break;
+      case "lightning": poly(ctx, [[56, 4], [22, 56], [44, 56], [36, 96], [76, 42], [52, 42], [68, 4]]); break;
+      case "sun":
+        circ(ctx, 50, 50, 22);
+        for (let k = 0; k < 8; k++) {
+          const a = k * Math.PI / 4, da = 0.16;
+          ctx.moveTo(50 + 28 * Math.sin(a - da), 50 - 28 * Math.cos(a - da));
+          ctx.lineTo(50 + 46 * Math.sin(a), 50 - 46 * Math.cos(a));
+          ctx.lineTo(50 + 28 * Math.sin(a + da), 50 - 28 * Math.cos(a + da));
+          ctx.closePath();
+        }
+        break;
+      case "moon": circ(ctx, 46, 50, 34); circ(ctx, 60, 50, 28); break;
+      case "cloud": circ(ctx, 32, 60, 15); circ(ctx, 50, 50, 20); circ(ctx, 68, 62, 14); ctx.rect(20, 58, 60, 18); break;
+      case "pin": circ(ctx, 50, 36, 22); poly(ctx, [[32, 50], [68, 50], [50, 92]]); break;
+      case "shield":
+        ctx.moveTo(50, 6); ctx.lineTo(86, 18); ctx.lineTo(86, 48);
+        ctx.bezierCurveTo(86, 72, 70, 86, 50, 94);
+        ctx.bezierCurveTo(30, 86, 14, 72, 14, 48);
+        ctx.lineTo(14, 18); ctx.closePath(); break;
+      case "crown": poly(ctx, [[12, 78], [12, 34], [31, 52], [50, 20], [69, 52], [88, 34], [88, 78]]); break;
+      case "flower":
+        for (let k = 0; k < 6; k++) {
+          const a = k * Math.PI / 3;
+          ctx.moveTo(50 + 24 * Math.sin(a) + 14, 50 - 24 * Math.cos(a));
+          ctx.ellipse(50 + 24 * Math.sin(a), 50 - 24 * Math.cos(a), 14, 24, a, 0, 7);
+        }
+        circ(ctx, 50, 50, 10); break;
+      case "note":
+        ctx.moveTo(49, 74); ctx.ellipse(36, 74, 13, 9, -0.3, 0, 7);
+        ctx.rect(46, 20, 6, 54);
+        ctx.moveTo(52, 20); ctx.quadraticCurveTo(74, 26, 68, 46); ctx.quadraticCurveTo(64, 32, 52, 30); ctx.closePath(); break;
+      case "play": poly(ctx, [[28, 14], [28, 86], [82, 50]]); break;
+      case "diamond": poly(ctx, [[50, 6], [90, 50], [50, 94], [10, 50]]); break;
+      case "plus": poly(ctx, [[36, 10], [64, 10], [64, 36], [90, 36], [90, 64], [64, 64], [64, 90], [36, 90], [36, 64], [10, 64], [10, 36], [36, 36]]); break;
+    }
+  }
+
+  function insertShape(name, sizePct, strokeOn) {
+    const meta = SHAPES.find((s) => s[0] === name);
+    if (!meta) return false;
+    const size = Math.max(8, Math.round(Math.min(S.docW, S.docH) * (sizePct || 40) / 100));
+    const layer = L.addLayer(S, "شكل: " + meta[1]);
+    const ctx = layer.canvas.getContext("2d");
+    ctx.save();
+    ctx.translate(Math.round((S.docW - size) / 2) - layer.x, Math.round((S.docH - size) / 2) - layer.y);
+    ctx.scale(size / 100, size / 100);
+    ctx.fillStyle = S.color;
+    traceShape(ctx, name);
+    ctx.fill(name === "moon" ? "evenodd" : "nonzero");
+    if (strokeOn) { ctx.strokeStyle = S.bgColor; ctx.lineWidth = 3 * 100 / size; traceShape(ctx, name); ctx.stroke(); }
+    ctx.restore();
+    PS.refreshAll();
+    return true;
+  }
+
+  function insertSymbol(ch, sizePct) {
+    if (!ch) return false;
+    const size = Math.max(8, Math.round(Math.min(S.docW, S.docH) * (sizePct || 40) / 100));
+    const layer = L.addLayer(S, "رمز: " + ch);
+    const ctx = layer.canvas.getContext("2d");
+    ctx.save();
+    ctx.translate(-layer.x, -layer.y);
+    ctx.font = X.fontCSS(size);
+    ctx.fillStyle = S.color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(ch, S.docW / 2, S.docH / 2);
+    ctx.restore();
+    PS.refreshAll();
+    return true;
+  }
+
+  X.actions.insertShape = function () {
+    if (!PS.activeLayer()) return;
+    let sel = null, tab = "shapes";
+    X.openDialog({
+      title: "إدراج شكل أو رمز",
+      note: "بيتحط كطبقة جديدة باللون الأمامي في نص اللوحة — حرّكه بعدها بأداة النقل",
+      params: [
+        { k: "size", label: "الحجم %", min: 10, max: 90, val: 40 },
+        { k: "stroke", type: "check", label: "حد بلون الخلفية (للأشكال)", val: false }
+      ],
+      custom(holder) {
+        const tabs = document.createElement("div"); tabs.className = "ps-tabs";
+        const tShapes = document.createElement("button"); tShapes.type = "button"; tShapes.className = "ps-tab active"; tShapes.textContent = "أشكال"; tShapes.dataset.tab = "shapes";
+        const tSym = document.createElement("button"); tSym.type = "button"; tSym.className = "ps-tab"; tSym.textContent = "رموز وإيموجي"; tSym.dataset.tab = "symbols";
+        const grid = document.createElement("div"); grid.className = "ps-grid";
+        const markSel = (it) => { grid.querySelectorAll(".ps-pick.selected").forEach((x) => x.classList.remove("selected")); it.classList.add("selected"); };
+        const render = () => {
+          grid.innerHTML = "";
+          if (tab === "shapes") {
+            SHAPES.forEach(([name, label]) => {
+              const it = document.createElement("button"); it.type = "button"; it.className = "ps-pick"; it.dataset.name = name; it.title = label;
+              const cv = document.createElement("canvas"); cv.width = cv.height = 46;
+              const c2 = cv.getContext("2d");
+              c2.translate(2, 2); c2.scale(0.42, 0.42);
+              c2.fillStyle = "#dce8fc";
+              traceShape(c2, name); c2.fill(name === "moon" ? "evenodd" : "nonzero");
+              it.appendChild(cv);
+              const sp = document.createElement("span"); sp.textContent = label; it.appendChild(sp);
+              it.addEventListener("click", () => { sel = name; markSel(it); });
+              grid.appendChild(it);
+            });
+          } else {
+            SYMBOLS.forEach((ch) => {
+              const it = document.createElement("button"); it.type = "button"; it.className = "ps-pick"; it.dataset.sym = ch;
+              const sp = document.createElement("span"); sp.className = "sym"; sp.textContent = ch; it.appendChild(sp);
+              it.addEventListener("click", () => { sel = ch; markSel(it); });
+              grid.appendChild(it);
+            });
+          }
+        };
+        tShapes.addEventListener("click", () => { tab = "shapes"; sel = null; tShapes.classList.add("active"); tSym.classList.remove("active"); render(); });
+        tSym.addEventListener("click", () => { tab = "symbols"; sel = null; tSym.classList.add("active"); tShapes.classList.remove("active"); render(); });
+        tabs.append(tShapes, tSym); holder.append(tabs, grid); render();
+        return () => ({ sel: sel, tab: tab });
+      },
+      commit(v) {
+        if (!v.sel) return;
+        if (v.tab === "shapes") insertShape(v.sel, v.size, v.stroke);
+        else insertSymbol(v.sel, v.size);
+      }
+    });
+  };
+
+  function buildInsertMenu() {
+    const bar = document.getElementById("menubar");
+    if (!bar || bar.querySelector('.menu-btn[data-menu="insert"]')) return;
+    const m = document.createElement("div"); m.className = "menu";
+    const b = document.createElement("button"); b.className = "menu-btn"; b.textContent = "إدراج"; b.dataset.menu = "insert";
+    const dd = document.createElement("div"); dd.className = "menu-dd";
+    [["صورة كطبقة جديدة…", "openImage"], ["شكل أو رمز جاهز…", "insertShape"]].forEach(([t, act]) => {
+      const row = document.createElement("button"); row.className = "menu-item"; row.dataset.act = act;
+      const sp = document.createElement("span"); sp.textContent = t; row.appendChild(sp);
+      row.addEventListener("click", () => { m.classList.remove("open"); setTimeout(() => X.actions[act](), 0); });
+      dd.appendChild(row);
+    });
+    const closeOthers = () => document.querySelectorAll("#menubar .menu.open").forEach((x) => x.classList.remove("open"));
+    b.addEventListener("click", (e) => { e.stopPropagation(); const was = m.classList.contains("open"); closeOthers(); if (!was) m.classList.add("open"); });
+    b.addEventListener("mouseenter", () => { if (bar.querySelector(".menu.open") && !m.classList.contains("open")) { closeOthers(); m.classList.add("open"); } });
+    m.append(b, dd); bar.appendChild(m);
+  }
+
+  const css = document.createElement("style");
+  css.textContent =
+    ".ps-tabs{display:flex;gap:6px;margin:6px 0}" +
+    ".ps-tab{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-family:inherit;font-size:12px;cursor:pointer}" +
+    ".ps-tab.active{border-color:var(--accent);color:var(--accent)}" +
+    ".ps-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;max-height:260px;overflow-y:auto;margin-top:8px}" +
+    ".ps-pick{display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:6px 4px;cursor:pointer;color:var(--text);font-family:inherit;font-size:10px}" +
+    ".ps-pick.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}" +
+    ".ps-pick span.sym{font-size:26px;line-height:1.2}" +
+    "#psAutosaveBanner{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:13px}";
+  document.head.appendChild(css);
+
+  function initV4() { buildInsertMenu(); if (!TESTMODE) setTimeout(checkAutosave, 1200); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV4); else initV4();
+
+  window.PSV4 = {
+    autosaveNow, checkAutosave, showBanner, insertShape, insertSymbol,
+    readAutosave: () => idbGet(AKEY),
+    clearAutosave: () => idbDel(AKEY),
+    restoreAutosave: async () => { try { const rec = await idbGet(AKEY); if (!rec || !rec.json) return false; return await X.api.loadProjectData(rec.json); } catch (e) { return false; } },
+    isDirty: () => dirty,
+    shapeNames: SHAPES.map((s) => s[0]),
+    symbolCount: SYMBOLS.length
+  };
+})();
+</script>
+
 <script>
 /* اختبارات الإضافات الموسّعة (بتتشغل مع ?test=1) */
 window.PSX_tests = async function (report, pointer, drag, pixel, sleep) {
@@ -3389,7 +3684,7 @@ window.PSX_tests = async function (report, pointer, drag, pixel, sleep) {
   const sel = (x) => { PS.setTool(x); };
 
   /* ---- الواجهة ---- */
-  report("menubar has 8 menus", document.querySelectorAll("#menubar .menu").length === 8);
+  report("menubar has 9 menus", document.querySelectorAll("#menubar .menu").length === 9);
   report("toolbar has 30 tools", document.querySelectorAll("#toolbar .tool").length >= 30, String(document.querySelectorAll("#toolbar .tool").length));
   report("all menu actions exist", Array.from(document.querySelectorAll(".menu-item")).every((b) => typeof A[b.dataset.act] === "function"));
   const menuCount = document.querySelectorAll(".menu-item").length;
@@ -3792,12 +4087,93 @@ window.PSX_tests = async function (report, pointer, drag, pixel, sleep) {
   const tov = document.getElementById("textOverlay");
   report("text overlay shows chosen font", tov.style.fontFamily.indexOf("Cairo") !== -1, tov.style.fontFamily);
   tov.value = "بيكسل";
-  tov.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  tov.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true }));
   let ink = 0;
   for (let yy = 42; yy < 95; yy += 2) for (let xx = 40; xx < 200; xx += 2) if (px(tlay, xx, yy)[3] > 0) ink++;
   report("arabic text renders with loaded font", ink > 15, String(ink));
   fontSel.value = "Segoe UI"; fontSel.dispatchEvent(new Event("change"));
   PS.setTool("move");
+
+  /* ---- الإصدار 4: إدراج، نص متعدد الأسطر، حفظ تلقائي ---- */
+  report("insert menu exists", !!document.querySelector('#menubar .menu-btn[data-menu="insert"]'));
+  report("insert action registered", typeof A.insertShape === "function");
+  const v4insertBtn = document.querySelector('#menubar .menu-btn[data-menu="insert"]');
+  v4insertBtn.click();
+  report("insert menu opens", v4insertBtn.parentElement.classList.contains("open"));
+  report("insert menu lists 2 actions", v4insertBtn.parentElement.querySelectorAll(".menu-item").length === 2);
+  document.body.click();
+
+  l = fresh(); const v4nLay = S.layers.length; S.color = "#e63946";
+  A.insertShape();
+  const v4pick = document.querySelector('.ps-pick[data-name="heart"]');
+  report("sticker dialog lists shapes", !!v4pick);
+  v4pick.click();
+  X.dialogApi.set("size", 60);
+  X.dialogApi.ok();
+  report("sticker adds a new layer", S.layers.length === v4nLay + 1);
+  const v4stl = PS.activeLayer();
+  report("sticker layer named", v4stl.name.indexOf("قلب") !== -1, v4stl.name);
+  let v4stInk = 0;
+  for (let yy = 60; yy < 240; yy += 3) for (let xx = 100; xx < 300; xx += 3) if (px(v4stl, xx, yy)[3] > 0) v4stInk++;
+  report("sticker pixels drawn centered", v4stInk > 100, String(v4stInk));
+  await PS.undo();
+  report("sticker undo removes layer", S.layers.length === v4nLay);
+
+  A.insertShape();
+  document.querySelector('.ps-tab[data-tab="symbols"]').click();
+  const v4symPick = document.querySelector('.ps-pick[data-sym="⭐"]');
+  report("symbol grid lists symbols", !!v4symPick);
+  v4symPick.click();
+  X.dialogApi.set("size", 60);
+  X.dialogApi.ok();
+  report("symbol adds a new layer", S.layers.length === v4nLay + 1);
+  const v4syml = PS.activeLayer();
+  let v4symInk = 0;
+  for (let yy = 90; yy < 210; yy += 3) for (let xx = 140; xx < 260; xx += 3) if (px(v4syml, xx, yy)[3] > 0) v4symInk++;
+  report("symbol pixels drawn", v4symInk > 15, String(v4symInk));
+  await PS.undo();
+
+  const v4mlay = fresh(); PS.setTool("text"); S.fontSize = 30; S.color = "#000000";
+  mod("pointerdown", 30, 30); mod("pointerup", 30, 30);
+  const v4movl = document.getElementById("textOverlay");
+  report("text overlay is multiline textarea", v4movl.tagName === "TEXTAREA");
+  v4movl.value = "السطر الأول";
+  v4movl.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  report("plain Enter stays open for new line", !v4movl.classList.contains("hidden"));
+  v4movl.value = "السطر الأول\nالسطر التاني";
+  v4movl.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true }));
+  report("Ctrl+Enter commits multiline", v4movl.classList.contains("hidden"));
+  let v4band1 = 0, v4band2 = 0;
+  for (let xx = 30; xx < 230; xx += 2) {
+    for (let yy = 30; yy < 62; yy += 2) if (px(v4mlay, xx, yy)[3] > 0) v4band1++;
+    for (let yy = 68; yy < 104; yy += 2) if (px(v4mlay, xx, yy)[3] > 0) v4band2++;
+  }
+  report("two text lines drawn at two heights", v4band1 > 8 && v4band2 > 8, v4band1 + "/" + v4band2);
+  PS.setTool("move");
+
+  l = fresh(); rectFill(l, 10, 10, 50, 50, "#123456");
+  report("new doc starts clean (not dirty)", window.PSV4.isDirty() === false);
+  const v4savedOk = await window.PSV4.autosaveNow(true);
+  report("autosave stores project", v4savedOk === true);
+  const v4rec = await window.PSV4.readAutosave();
+  report("autosave record readable", !!v4rec && v4rec.json.indexOf("pixel-studio-project") !== -1);
+  rectFill(l, 10, 10, 50, 50, "#ff0000");
+  const v4restored = await window.PSV4.restoreAutosave();
+  report("autosave restore succeeds", v4restored === true);
+  const v4rpx = px(PS.activeLayer(), 30, 30);
+  report("restored pixels match saved copy", v4rpx[0] === 0x12 && v4rpx[1] === 0x34 && v4rpx[2] === 0x56, v4rpx.join(","));
+  await window.PSV4.clearAutosave();
+  report("autosave cleared", (await window.PSV4.readAutosave()) == null);
+  await window.PSV4.autosaveNow(true);
+  const v4rec2 = await window.PSV4.readAutosave();
+  window.PSV4.showBanner(v4rec2);
+  const v4ban = document.getElementById("psAutosaveBanner");
+  report("restore banner shows", !!v4ban);
+  const v4banBtns = v4ban.querySelectorAll("button");
+  v4banBtns[v4banBtns.length - 1].click();
+  await sleep(400);
+  report("banner dismiss removes banner", !document.getElementById("psAutosaveBanner"));
+  report("banner dismiss clears record", (await window.PSV4.readAutosave()) == null);
 };
 
 </script>
@@ -3986,13 +4362,13 @@ if (/[?&](test|demo)=1/.test(location.search)) {
     pointer("pointerup", 180, 40);
     overlay.value = "بيكسل ستوديو";
     S.fontSize = 64; S.color = "#ffffff";
-    overlay.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    overlay.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true }));
 
     L.addLayer(S,"نجمة + أشكال");
     PS.setTool("polygon"); X.opts.sides=5; X.opts.star=true; S.color="#ffd166"; drag(735,430,800,470);
     PS.setTool("roundrect"); X.opts.radius=20; S.color="#344b70"; drag(90,530,610,585);
     PS.setTool("text"); S.color="#dce8fc"; S.fontSize=22; X.opts.bold=false;
-    pointer("pointerdown",125,540);pointer("pointerup",125,540);overlay.value="أدوات أكتر • شغل بطبقات • حفظ مشروع";overlay.dispatchEvent(new KeyboardEvent("keydown",{key:"Enter",bubbles:true}));
+    pointer("pointerdown",125,540);pointer("pointerup",125,540);overlay.value="أدوات أكتر • شغل بطبقات • حفظ مشروع";overlay.dispatchEvent(new KeyboardEvent("keydown",{key:"Enter",ctrlKey:true,bubbles:true}));
     S.color="#ffd166"; S.bgColor="#10192c";X.syncColors();
     PS.setTool("clone");
     S.activeId = S.layers[S.layers.length-1].id;
